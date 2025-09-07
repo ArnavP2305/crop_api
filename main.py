@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import pickle
+import numpy as np
 
-# Load the trained model
+# Load model
 with open("crop_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 app = FastAPI(title="Crop Recommendation API")
 
-# Define input data format
+# Input schema
 class CropInput(BaseModel):
     N: float
     P: float
@@ -18,18 +19,32 @@ class CropInput(BaseModel):
     ph: float
     rainfall: float
 
-@app.post("/predict")
-def predict_crop(data: CropInput):
-    # Convert input to list for model prediction
-    features = [[
-        data.N, data.P, data.K, 
-        data.temperature, data.humidity, 
-        data.ph, data.rainfall
-    ]]
-    prediction = model.predict(features)
-    return {"recommended_crop": prediction[0]}
-
 @app.get("/")
 def home():
-    return {"message": "Welcome to Crop Recommendation API. Use /predict endpoint."}
+    return {
+        "message": "Welcome to Crop Recommendation API 🌱",
+        "usage": "Send a POST request to /predict with crop parameters in JSON."
+    }
 
+@app.post("/predict")
+def predict_crop(input: CropInput):
+    data = [[
+        input.N, input.P, input.K, input.temperature,
+        input.humidity, input.ph, input.rainfall
+    ]]
+
+    # Get probabilities
+    probs = model.predict_proba(data)[0]
+
+    # Map crops to probabilities
+    crop_probs = dict(zip(model.classes_, probs))
+
+    # Sort and get Top 3
+    top_crops = sorted(crop_probs.items(), key=lambda x: x[1], reverse=True)[:3]
+
+    return {
+        "recommended_crops": [
+            {"crop": crop, "probability": round(prob*100, 2)}
+            for crop, prob in top_crops
+        ]
+    }
