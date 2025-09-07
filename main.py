@@ -18,8 +18,8 @@ def predict(data: dict):
     probs = model.predict_proba(input_data)[0]
     crop_classes = model.classes_
     
-    # Sort crops by probability (descending)
-    top_n = 12  # you can change to 10 or 12
+    
+    top_n = 12  
     top_indices = np.argsort(probs)[::-1][:top_n]
     
     recommendations = [
